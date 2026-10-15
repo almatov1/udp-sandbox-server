@@ -11,6 +11,8 @@ import (
 )
 
 const (
+	tickRate = 64
+
 	listenAddr = ":9000"
 
 	worldWidth  = 800.0
@@ -258,24 +260,27 @@ func (s *Server) broadcast() {
 func (s *Server) Run() {
 	go s.readLoop()
 
-	simulationTicker := time.NewTicker(time.Second / 60)
-	broadcastTicker := time.NewTicker(time.Second / 20)
+	tickInterval := time.Second / tickRate
+	fixedDT := 1.0 / float64(tickRate)
+
+	simulationTicker := time.NewTicker(tickInterval)
+	broadcastTicker := time.NewTicker(tickInterval)
 	cleanupTicker := time.NewTicker(250 * time.Millisecond)
 
 	defer simulationTicker.Stop()
 	defer broadcastTicker.Stop()
 	defer cleanupTicker.Stop()
 
-	lastTick := time.Now()
-
-	log.Printf("UDP server listening on %s", listenAddr)
+	log.Printf(
+		"UDP server listening on %s (tickrate=%d Hz)",
+		listenAddr,
+		tickRate,
+	)
 
 	for {
 		select {
-		case now := <-simulationTicker.C:
-			dt := now.Sub(lastTick).Seconds()
-			lastTick = now
-			s.simulate(dt)
+		case <-simulationTicker.C:
+			s.simulate(fixedDT)
 
 		case <-broadcastTicker.C:
 			s.broadcast()
